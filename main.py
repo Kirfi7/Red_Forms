@@ -1,14 +1,17 @@
 import time
+import json
+import datetime
 
 import vk_api
 import sqlite3
 
 from cfg import TOKEN, DEV, STAFF
-from vk_api.longpoll import VkLongPoll, VkEventType
+from forms import add_form, get_form
+from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
 vk_session = vk_api.VkApi(token=TOKEN)
-lp = VkLongPoll(vk_session)
+lp = VkBotLongPoll(vk_session, 218860473)
 vk = vk_session.get_api()
 
 
@@ -20,87 +23,130 @@ def sender(for_user_id, message_text):
     })
 
 
+def chat_sender(for_user_id, message_text):
+    vk_session.method("messages.send", {
+        "user_id": for_user_id,
+        "message": message_text,
+        "random_id": 0
+    })
+
+
 def get_level(for_user_id):
     try:
         db = sqlite3.connect('admins.db'); c = db.cursor()
-        level = c.execute(f"SELECT lvl FROM admin WHERE id = '{for_user_id}'")
+        level = c.execute(f"SELECT lvl FROM admins WHERE vk_id = {for_user_id}").fetchone()[0]
         db.commit(); db.close()
-        return int(level.fetchone()[0])
-    except: return 0
+        return int(level)
+    except:
+        return 0
 
 
-def send_default_keyboard(for_user_id):
+def send_start_keyboard(for_user_id):
     keyboard = VkKeyboard()
-    keyboard.add_button("Создать форму", VkKeyboardColor.POSITIVE)
-    keyboard.add_button("Последняя форма", VkKeyboardColor.PRIMARY)
+    keyboard.add_button("Принять форму", VkKeyboardColor.POSITIVE)
+    keyboard.add_button("Помощь по боту", VkKeyboardColor.PRIMARY)
 
     vk_session.method("messages.send", {
         "user_id": for_user_id,
-        "message": "Выход на главную...",
+        "message": "Ознакомьтесь с руководством по использованию:",
         "random_id": 0,
         "keyboard": keyboard.get_empty_keyboard()
     }); time.sleep(0.25)
     vk_session.method("messages.send", {
         "user_id": for_user_id,
-        "message": "Выберите действие:",
+        "message": str(open("help.txt", "r", encoding="utf-8").readline()),
         "random_id": 0,
         "keyboard": keyboard.get_keyboard()
     })
-
-
-def send_form_keyboard(for_user_id, form):
-    keyboard = VkKeyboard()
-    keyboard.add_button("Принял форму", VkKeyboardColor.POSITIVE)
-    keyboard.add_button("Нет в БД", VkKeyboardColor.NEGATIVE)
-
-    vk_session.method("messages.send", {
-        "user_id": for_user_id,
-        "message": "Загружается последняя форма...",
-        "random_id": 0,
-        "keyboard": keyboard.get_empty_keyboard()
-    }); time.sleep(0.25)
-    vk_session.method("messages.send", {
-        "user_id": for_user_id,
-        "message": form,
-        "random_id": 0,
-        "keyboard": keyboard.get_keyboard()
-    })
-
-
-def get_last_form(for_lvl):
-    db = sqlite3.connect("database.db"); c = db.cursor()
-    last_form = c.execute(f"SELECT form FROM forms WHERE lvl <= {for_lvl}").fetchone()[0]
-    db.commit(); db.close()
-    return last_form
 
 
 while True:
     try:
         for event in lp.listen():
-            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                text = event.text
-                user_id = event.user_id
+            if event.type == VkBotEventType.MESSAGE_NEW and not event.from_chat:
+                text = event.object.message['text']
+                user_id = event.object.message['from_id']
+                message_id = event.object.message['conversation_message_id']
                 lvl = get_level(user_id)
 
-                if text == "Начать":
-                    send_default_keyboard(user_id)
+                if text == "Начать" or text == "start" and lvl > 0:
+                    send_start_keyboard(user_id)
 
-                elif text == "Последняя форма" and lvl > 0:
-                    # send_form_keyboard(user_id, get_last_form(user_id))
+                elif "Помощь" in text or "help" in text and lvl > 0:
+                    sender(user_id, str(open("help.txt", "r", encoding="utf-8").readline()))
 
-                    i_keyboard = VkKeyboard(inline=True, one_time=True)
-                    i_keyboard.add_button(label="Принял", color=VkKeyboardColor.POSITIVE, payload={"type": "accept"})
-                    i_keyboard.add_button(label="Нет в БД", color=VkKeyboardColor.NEGATIVE, payload={"type": "deny"})
+                elif text == "Принять форму" and lvl > 0:
+                    form_array = get_form(lvl)
+                    form = form_array[1]; fid = form_array[2]
 
-                    vk_session.method("messages.send", {
-                        "user_id": user_id,
-                        "message": "Haha", # get_last_form(user_id),
-                        "random_id": 0,
-                        "keyboard": i_keyboard.get_keyboard()
+                    i_keyboard = VkKeyboard(inline=True)
+                    i_keyboard.add_callback_button("ㅤВыполненоㅤ", VkKeyboardColor.POSITIVE, {"type": f"accept-{form}"})
+                    i_keyboard.add_callback_button("ㅤㅤНет в БДㅤㅤ", VkKeyboardColor.NEGATIVE, {"type": f"deny-{form}-{fid}"})
+
+                    if str(form) != "0":
+                        vk_session.method("messages.send", {
+                            "user_id": user_id,
+                            "message": form,
+                            "random_id": 0,
+                            "keyboard": i_keyboard.get_keyboard()
+                        })
+                    else:
+                        sender(user_id, "Нет подходящих форм!")
+
+                elif text[0] == "/" and lvl > 0:
+                    date = int(str(datetime.datetime.now().timestamp()).split('.')[0])
+                    if add_form(text, date, user_id) == 1:
+                        query_json = json.dumps({
+                            "peer_id": user_id,
+                            "conversation_message_ids": [message_id],
+                            "is_reply": True
+                        })
+                        vk_session.method("messages.send", {
+                            "user_id": user_id,
+                            "message": f"✅ Форма успешно добавлена",
+                            "conversation_message_id": event.obj.conversation_message_id,
+                            "forward": [query_json],
+                            "random_id": 0
+                        })
+                    else:
+                        sender(user_id, "Ошибка добавления формы!")
+
+            elif event.type == VkBotEventType.MESSAGE_EVENT:
+                if "deny" in event.object.payload.get('type'):
+
+                    call_back_text = event.object.payload.get('type').split("-")
+                    form_user_id = int(call_back_text[2])
+
+                    msg = f"⚠️ Внимание ⚠️\nНика по вашей форме нет в БД:\n{call_back_text[1]}"
+                    sender(form_user_id, msg)
+
+                    call_message_text = call_back_text[1]
+                    e_txt = "ㅤㅤㅤㅤㅤㅤ❌ㅤㅤㅤㅤㅤㅤ"
+
+                    e_keyboard = VkKeyboard(inline=True)
+                    e_keyboard.add_callback_button(e_txt, VkKeyboardColor.NEGATIVE, {"type": "empty_callback"})
+
+                    vk_session.method("messages.edit", {
+                        "peer_id": event.obj.peer_id,
+                        "message": call_message_text,
+                        "conversation_message_id": event.obj.conversation_message_id,
+                        "keyboard": e_keyboard.get_keyboard()
                     })
 
-                elif text == "Создать форму" and lvl > 0:
-                    pass
+                elif "accept" in event.object.payload.get('type'):
+
+                    call_message_text = event.object.payload.get('type').split("-")[1]
+                    e_txt = "ㅤㅤㅤㅤㅤㅤ✅ㅤㅤㅤㅤㅤㅤ"
+
+                    e_keyboard = VkKeyboard(inline=True)
+                    e_keyboard.add_callback_button(e_txt, VkKeyboardColor.POSITIVE, {"type": "empty_callback"})
+
+                    vk_session.method("messages.edit", {
+                        "peer_id": event.obj.peer_id,
+                        "message": call_message_text,
+                        "conversation_message_id": event.obj.conversation_message_id,
+                        "keyboard": e_keyboard.get_keyboard()
+                    })
 
     except Exception as error:
         print(error)
