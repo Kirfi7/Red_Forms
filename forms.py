@@ -12,7 +12,7 @@ def add_form(text, date, vk_id):
     nick_name = ct.execute(f"SELECT nick FROM admins WHERE vk_id = '{vk_id}'").fetchone()[0]
     nick_by = f" | by {nick_name[0]}. {nick_name.split('_')[1]}"
 
-    if len(array) < 3 or not("_" in array[1]) or not(cmd in COMMANDS):
+    if len(array) < 3 or not("_" in array[1]) or not(cmd in COMMANDS) or text.count(cmd) > 1:
         return 0
 
     if COMMANDS[cmd]['parameters'] == 4 and len(array) >= 4:

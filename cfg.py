@@ -12,10 +12,6 @@ DEV = ['534422651', '468509613']
 STAFF = ['327113505', '16715256', '137480835']
 #           Влад         Гей         Серый
 
-# списки команд
-C_4 = ['/mute', '/jail', '/ban']
-C_3 = ['/unmute', '/unjail', '/unwarn', '/unban', '/permban', '/ungwarn']
-
 COMMANDS = {
     "mute": {"lvl": 1, "parameters": 4},
     "unmute": {"lvl": 1, "parameters": 3},
