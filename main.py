@@ -45,6 +45,18 @@ def send_start_keyboard(for_user_id):
     keyboard = VkKeyboard()
     keyboard.add_button("Принять форму", VkKeyboardColor.POSITIVE)
     keyboard.add_button("Помощь по боту", VkKeyboardColor.PRIMARY)
+    keyboard.add_line()
+    keyboard.add_button("Бот с информацией", VkKeyboardColor.SECONDARY)
+
+    button = {
+        "action": {
+            "type": "open_link",
+            "link": "https://vk.com/red.table",
+            "label": "ПЕРЕЙТИ НАХУЙ"
+        },
+        "color": "secondary"
+    }
+    keyboard.add_button(json.dumps(button), VkKeyboardColor.SECONDARY)
 
     vk_session.method("messages.send", {
         "user_id": for_user_id,
@@ -74,6 +86,9 @@ while True:
 
                 elif "Помощь" in text or "help" in text and lvl > 0:
                     sender(user_id, str(open("help.txt", "r", encoding="utf-8").readline()))
+
+                elif "Бот с информацией" in text and lvl > 0:
+                    sender(user_id, "ЛЕЖАТЬ + СОСАТЬ")
 
                 elif text == "Принять форму" and lvl > 0:
                     form_array = get_form(lvl)
