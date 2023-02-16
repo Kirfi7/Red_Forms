@@ -1,4 +1,3 @@
-import time
 import json
 import datetime
 
@@ -33,40 +32,40 @@ def chat_sender(for_user_id, message_text):
 
 def get_level(for_user_id):
     try:
-        db = sqlite3.connect('admins.db'); c = db.cursor()
+        db = sqlite3.connect('admins.db')
+        c = db.cursor()
         level = c.execute(f"SELECT lvl FROM admins WHERE vk_id = {for_user_id}").fetchone()[0]
-        db.commit(); db.close()
+        db.commit()
+        db.close()
         return int(level)
     except:
         return 0
 
 
 def send_start_keyboard(for_user_id):
-    keyboard = VkKeyboard()
-    keyboard.add_button("Принять форму", VkKeyboardColor.POSITIVE)
-    keyboard.add_button("Помощь по боту", VkKeyboardColor.PRIMARY)
-    keyboard.add_line()
-    keyboard.add_button("Бот с информацией", VkKeyboardColor.SECONDARY)
-
-    button = {
-        "action": {
-            "type": "open_link",
-            "link": "https://vk.com/red.table",
-            "label": "ПЕРЕЙТИ НАХУЙ"
-        },
-        "color": "secondary"
-    }
-    keyboard.add_button(json.dumps(button), VkKeyboardColor.SECONDARY)
+    keyboard = VkKeyboard(
+        one_time=False,
+        inline=False
+    )
+    keyboard.add_button(
+        label="Принять форму",
+        color=VkKeyboardColor.POSITIVE
+    )
+    keyboard.add_button(
+        label="Помощь по боту",
+        color=VkKeyboardColor.PRIMARY
+    )
 
     vk_session.method("messages.send", {
         "user_id": for_user_id,
         "message": "Ознакомьтесь с руководством по использованию:",
         "random_id": 0,
         "keyboard": keyboard.get_empty_keyboard()
-    }); time.sleep(0.25)
+    })
+
     vk_session.method("messages.send", {
         "user_id": for_user_id,
-        "message": str(open("help.txt", "r", encoding="utf-8").readline()),
+        "message": open("help.txt", "r", encoding="utf-8").readline(),
         "random_id": 0,
         "keyboard": keyboard.get_keyboard()
     })
@@ -87,21 +86,34 @@ while True:
                 elif "Помощь" in text or "help" in text and lvl > 0:
                     sender(user_id, str(open("help.txt", "r", encoding="utf-8").readline()))
 
-                elif "Бот с информацией" in text and lvl > 0:
-                    sender(user_id, "ЛЕЖАТЬ + СОСАТЬ")
-
                 elif text == "Принять форму" and lvl > 0:
                     form_array = get_form(lvl)
-                    form = form_array[1]; fid = form_array[2]
+                    form_text = form_array[1]
+                    form_user_id = form_array[2]
 
                     i_keyboard = VkKeyboard(inline=True)
-                    i_keyboard.add_callback_button("ㅤВыполненоㅤ", VkKeyboardColor.POSITIVE, {"type": f"accept-{form}"})
-                    i_keyboard.add_callback_button("ㅤㅤНет в БДㅤㅤ", VkKeyboardColor.NEGATIVE, {"type": f"deny-{form}-{fid}"})
+                    i_keyboard.add_callback_button(
+                        label="ㅤВыполненоㅤ",
+                        color=VkKeyboardColor.POSITIVE,
+                        payload={
+                            # форматирую call-back строчку
+                            "type": f"accept-{form_text}"
+                        }
+                    )
+                    i_keyboard.add_callback_button(
+                        label="ㅤㅤНет в БДㅤㅤ",
+                        color=VkKeyboardColor.NEGATIVE,
+                        payload={
+                            # форматирую call-back строчку
+                            "type": f"deny-{form_text}-{form_user_id}"
+                        }
+                    )
 
-                    if str(form) != "0":
+                    # 0 возвращается в случае ошибки (строка 94)
+                    if str(form_text) != "0":
                         vk_session.method("messages.send", {
                             "user_id": user_id,
-                            "message": form,
+                            "message": form_text,
                             "random_id": 0,
                             "keyboard": i_keyboard.get_keyboard()
                         })
@@ -136,10 +148,11 @@ while True:
                     sender(form_user_id, msg)
 
                     call_message_text = call_back_text[1]
-                    e_txt = "ㅤㅤㅤㅤㅤㅤ❌ㅤㅤㅤㅤㅤㅤ"
 
                     e_keyboard = VkKeyboard(inline=True)
-                    e_keyboard.add_callback_button(e_txt, VkKeyboardColor.NEGATIVE, {"type": "empty_callback"})
+                    e_keyboard.add_callback_button("ㅤㅤㅤㅤㅤㅤ❌ㅤㅤㅤㅤㅤㅤ", VkKeyboardColor.NEGATIVE, {
+                        "type": "empty_callback"
+                    })
 
                     vk_session.method("messages.edit", {
                         "peer_id": event.obj.peer_id,
@@ -151,10 +164,11 @@ while True:
                 elif "accept" in event.object.payload.get('type'):
 
                     call_message_text = event.object.payload.get('type').split("-")[1]
-                    e_txt = "ㅤㅤㅤㅤㅤㅤ✅ㅤㅤㅤㅤㅤㅤ"
 
                     e_keyboard = VkKeyboard(inline=True)
-                    e_keyboard.add_callback_button(e_txt, VkKeyboardColor.POSITIVE, {"type": "empty_callback"})
+                    e_keyboard.add_callback_button("ㅤㅤㅤㅤㅤㅤ✅ㅤㅤㅤㅤㅤㅤ", VkKeyboardColor.POSITIVE, {
+                        "type": "empty_callback"
+                    })
 
                     vk_session.method("messages.edit", {
                         "peer_id": event.obj.peer_id,

@@ -8,7 +8,8 @@ def add_form(text, date, vk_id):
     array = text.split()
     cmd = array[0][1:]
 
-    dtb = sqlite3.connect('admins.db'); ct = dtb.cursor()
+    dtb = sqlite3.connect('admins.db')
+    ct = dtb.cursor()
     nick_name = ct.execute(f"SELECT nick FROM admins WHERE vk_id = '{vk_id}'").fetchone()[0]
     nick_by = f" | by {nick_name[0]}. {nick_name.split('_')[1]}"
 
@@ -28,7 +29,8 @@ def add_form(text, date, vk_id):
             db = sqlite3.connect('forms.db'); c = db.cursor()
             c.execute(f"INSERT INTO forms VALUES ('{text + nick_by}', '{COMMANDS[cmd]['lvl']}', '{date}', '{vk_id}')")
             forms_count = len(c.execute(f"SELECT rowid FROM forms").fetchall())
-            db.commit(); db.close()
+            db.commit()
+            db.close()
 
             if forms_count >= 10:
                 chat_sender(1, f"@all Примите формы! Накопилось уже {forms_count}!")
@@ -52,13 +54,16 @@ def add_form(text, date, vk_id):
 
 
 def get_form(lvl):
-    db = sqlite3.connect('forms.db'); c = db.cursor()
+    db = sqlite3.connect('forms.db')
+    c = db.cursor()
     result = c.execute(f"SELECT rowid, form, vk_id FROM forms WHERE lvl <= '{int(lvl)}'").fetchone()
 
     if result is None:
-        db.commit(); db.close()
+        db.commit()
+        db.close()
         return 0, 0, 0
 
     c.execute(f"DELETE FROM forms WHERE rowid = '{result[0]}'")
-    db.commit(); db.close()
+    db.commit()
+    db.close()
     return result
