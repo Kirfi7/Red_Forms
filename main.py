@@ -5,7 +5,7 @@ import vk_api
 import sqlite3
 
 from cfg import TOKEN, DEV, STAFF
-from forms import add_form, get_form
+from forms import add_form, get_form, form_count
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
@@ -80,11 +80,14 @@ while True:
                 message_id = event.object.message['conversation_message_id']
                 lvl = get_level(user_id)
 
-                if text == "Начать" or text == "start" and lvl > 0:
+                if text == "Начать" and lvl > 0:
                     send_start_keyboard(user_id)
 
-                elif "Помощь" in text or "help" in text and lvl > 0:
+                elif text == "Помощь по боту" and lvl > 0:
                     sender(user_id, str(open("help.txt", "r", encoding="utf-8").readline()))
+
+                elif text == "Количество форм" and lvl > 0:
+                    sender(user_id, f"Количество активных форм: {form_count()}")
 
                 elif text == "Принять форму" and lvl > 0:
                     form_array = get_form(lvl)
@@ -96,20 +99,27 @@ while True:
                         label="ㅤВыполненоㅤ",
                         color=VkKeyboardColor.POSITIVE,
                         payload={
-                            # форматирую call-back строчку
+                            # форматирую call-back принятия
                             "type": f"accept-{form_text}"
                         }
                     )
                     i_keyboard.add_callback_button(
-                        label="ㅤㅤНет в БДㅤㅤ",
+                        label="ㅤПередать ГАㅤ",
+                        color=VkKeyboardColor.PRIMARY,
+                        payload={
+                            # форматирую call-back передачи Кириллу
+                            "type": f"for_kirill-{form_text}-{form_user_id}"
+                        }
+                    )
+                    i_keyboard.add_callback_button(
+                        label="ㅤНет в БДㅤ",
                         color=VkKeyboardColor.NEGATIVE,
                         payload={
-                            # форматирую call-back строчку
                             "type": f"deny-{form_text}-{form_user_id}"
                         }
                     )
 
-                    # 0 возвращается в случае ошибки (строка 94)
+                    # form_text = 0 возвращается в случае ошибки
                     if str(form_text) != "0":
                         vk_session.method("messages.send", {
                             "user_id": user_id,
@@ -139,43 +149,76 @@ while True:
                         sender(user_id, "Ошибка добавления формы!")
 
             elif event.type == VkBotEventType.MESSAGE_EVENT:
+
+                # триггер формы с отсутствием в БД
                 if "deny" in event.object.payload.get('type'):
 
                     call_back_text = event.object.payload.get('type').split("-")
                     form_user_id = int(call_back_text[2])
-
-                    msg = f"⚠️ Внимание ⚠️\nНика по вашей форме нет в БД:\n{call_back_text[1]}"
-                    sender(form_user_id, msg)
-
-                    call_message_text = call_back_text[1]
+                    call_form_text = call_back_text[1]
 
                     e_keyboard = VkKeyboard(inline=True)
-                    e_keyboard.add_callback_button("ㅤㅤㅤㅤㅤㅤ❌ㅤㅤㅤㅤㅤㅤ", VkKeyboardColor.NEGATIVE, {
-                        "type": "empty_callback"
-                    })
+                    e_keyboard.add_callback_button(
+                        label="ㅤㅤㅤㅤㅤㅤ❌ㅤㅤㅤㅤㅤㅤ",
+                        color=VkKeyboardColor.NEGATIVE,
+                        payload={
+                            "type": "empty_callback"
+                        }
+                    )
 
                     vk_session.method("messages.edit", {
                         "peer_id": event.obj.peer_id,
-                        "message": call_message_text,
+                        "message": call_form_text,
                         "conversation_message_id": event.obj.conversation_message_id,
                         "keyboard": e_keyboard.get_keyboard()
                     })
 
+                    sender(form_user_id, f"⚠️ Внимание ⚠️\nНика по вашей форме нет в БД:\n{call_form_text}")
+
+                # триггер принятой формы
                 elif "accept" in event.object.payload.get('type'):
 
-                    call_message_text = event.object.payload.get('type').split("-")[1]
+                    call_form_text = event.object.payload.get('type').split("-")[1]
 
                     e_keyboard = VkKeyboard(inline=True)
-                    e_keyboard.add_callback_button("ㅤㅤㅤㅤㅤㅤ✅ㅤㅤㅤㅤㅤㅤ", VkKeyboardColor.POSITIVE, {
-                        "type": "empty_callback"
-                    })
+                    e_keyboard.add_callback_button(
+                        label="ㅤㅤㅤㅤㅤㅤ✅ㅤㅤㅤㅤㅤㅤ",
+                        color=VkKeyboardColor.POSITIVE,
+                        payload={
+                            "type": "empty_callback"
+                        }
+                    )
 
                     vk_session.method("messages.edit", {
                         "peer_id": event.obj.peer_id,
-                        "message": call_message_text,
+                        "message": call_form_text,
                         "conversation_message_id": event.obj.conversation_message_id,
                         "keyboard": e_keyboard.get_keyboard()
                     })
+
+                # триггер передачи формы Кириллу
+                elif "for_kirill" in event.object.payload.get('type'):
+                    call_back_text = event.object.payload.get('type').split("-")
+                    form_user_id = int(call_back_text[2])
+                    call_form_text = call_back_text[1]
+
+                    e_keyboard = VkKeyboard(inline=True)
+                    e_keyboard.add_callback_button(
+                        label="ㅤㅤㅤПереданоㅤㅤㅤ",
+                        color=VkKeyboardColor.POSITIVE,
+                        payload={
+                            "type": "empty_callback"
+                        }
+                    )
+
+                    vk_session.method("messages.edit", {
+                        "peer_id": event.obj.peer_id,
+                        "message": call_form_text,
+                        "conversation_message_id": event.obj.conversation_message_id,
+                        "keyboard": e_keyboard.get_keyboard()
+                    })
+
+                    sender(468509613, f"[id{form_user_id}|Администратор] передал вам форму:\n{call_form_text}")
 
     except Exception as error:
         print(error)

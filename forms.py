@@ -67,3 +67,12 @@ def get_form(lvl):
     db.commit()
     db.close()
     return result
+
+
+def form_count():
+    db = sqlite3.connect('forms.db')
+    c = db.cursor()
+    count = len(c.execute(f"SELECT lvl FROM forms").fetchall())
+    db.commit()
+    db.close()
+    return count
