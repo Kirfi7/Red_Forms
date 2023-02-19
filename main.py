@@ -96,28 +96,18 @@ while True:
 
                     i_keyboard = VkKeyboard(inline=True)
                     i_keyboard.add_callback_button(
-                        label="ㅤВыполненоㅤ",
+                        label="Выполнено",
                         color=VkKeyboardColor.POSITIVE,
-                        payload={
-                            # форматирую call-back принятия
-                            "type": f"accept-{form_text}"
-                        }
-                    )
+                        payload={"call_back": f"accept-{form_text}"})
+                    i_keyboard.add_line()
                     i_keyboard.add_callback_button(
-                        label="ㅤПередать ГАㅤ",
-                        color=VkKeyboardColor.PRIMARY,
-                        payload={
-                            # форматирую call-back передачи Кириллу
-                            "type": f"for_kirill-{form_text}-{form_user_id}"
-                        }
-                    )
-                    i_keyboard.add_callback_button(
-                        label="ㅤНет в БДㅤ",
+                        label="Нет в БД",
                         color=VkKeyboardColor.NEGATIVE,
-                        payload={
-                            "type": f"deny-{form_text}-{form_user_id}"
-                        }
-                    )
+                        payload={"call_back": f"deny-{form_text}-{form_user_id}"})
+                    i_keyboard.add_callback_button(
+                        label="Передать форму ГА",
+                        color=VkKeyboardColor.PRIMARY,
+                        payload={"call_back": f"for_kirill-{form_text}-{form_user_id}"})
 
                     # form_text = 0 возвращается в случае ошибки
                     if str(form_text) != "0":
@@ -149,17 +139,14 @@ while True:
                         sender(user_id, "Ошибка добавления формы!")
 
             elif event.type == VkBotEventType.MESSAGE_EVENT:
-
-                # триггер формы с отсутствием в БД
-                if "deny" in event.object.payload.get('type'):
-
-                    call_back_text = event.object.payload.get('type').split("-")
+                if "deny" in event.object.payload.get('call_back'):
+                    call_back_text = event.object.payload.get('call_back').split("-")
                     form_user_id = int(call_back_text[2])
                     call_form_text = call_back_text[1]
 
                     e_keyboard = VkKeyboard(inline=True)
                     e_keyboard.add_callback_button(
-                        label="ㅤㅤㅤㅤㅤㅤ❌ㅤㅤㅤㅤㅤㅤ",
+                        label="ㅤㅤㅤㅤㅤ❌ㅤㅤㅤㅤㅤ",
                         color=VkKeyboardColor.NEGATIVE,
                         payload={
                             "type": "empty_callback"
@@ -174,15 +161,14 @@ while True:
                     })
 
                     sender(form_user_id, f"⚠️ Внимание ⚠️\nНика по вашей форме нет в БД:\n{call_form_text}")
+                    sender(3, f"Ника по следующей форме нет в БД:\n{call_form_text}\n#нетвбд")
 
-                # триггер принятой формы
-                elif "accept" in event.object.payload.get('type'):
-
-                    call_form_text = event.object.payload.get('type').split("-")[1]
+                elif "accept" in event.object.payload.get('call_back'):
+                    call_form_text = event.object.payload.get('call_back').split("-")[1]
 
                     e_keyboard = VkKeyboard(inline=True)
                     e_keyboard.add_callback_button(
-                        label="ㅤㅤㅤㅤㅤㅤ✅ㅤㅤㅤㅤㅤㅤ",
+                        label="ㅤㅤㅤㅤㅤ✅ㅤㅤㅤㅤㅤ",
                         color=VkKeyboardColor.POSITIVE,
                         payload={
                             "type": "empty_callback"
@@ -196,9 +182,8 @@ while True:
                         "keyboard": e_keyboard.get_keyboard()
                     })
 
-                # триггер передачи формы Кириллу
-                elif "for_kirill" in event.object.payload.get('type'):
-                    call_back_text = event.object.payload.get('type').split("-")
+                elif "for_kirill" in event.object.payload.get('call_back'):
+                    call_back_text = event.object.payload.get('call_back').split("-")
                     form_user_id = int(call_back_text[2])
                     call_form_text = call_back_text[1]
 
