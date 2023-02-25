@@ -22,9 +22,9 @@ def sender(for_user_id, message_text):
     })
 
 
-def chat_sender(for_user_id, message_text):
+def chat_sender(for_chat_id, message_text):
     vk_session.method("messages.send", {
-        "user_id": for_user_id,
+        "chat_id": for_chat_id,
         "message": message_text,
         "random_id": 0
     })
@@ -161,7 +161,7 @@ while True:
                     })
 
                     sender(form_user_id, f"⚠️ Внимание ⚠️\nНика по вашей форме нет в БД:\n{call_form_text}")
-                    sender(3, f"Ника по следующей форме нет в БД:\n{call_form_text}\n#нетвбд")
+                    chat_sender(3, f"Ника по следующей форме нет в БД:\n{call_form_text}\n#нетвбд")
 
                 elif "accept" in event.object.payload.get('call_back'):
                     call_form_text = event.object.payload.get('call_back').split("-")[1]
