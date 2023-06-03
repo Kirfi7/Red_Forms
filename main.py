@@ -1,8 +1,7 @@
 import vk_api
-import sqlite3
 
 from cfg import TOKEN, COMMANDS
-from forms import add_form, get_form, form_accepted, form_denied, form_ranked_up
+from forms import add_form, get_form, form_accepted, form_denied, form_ranked_up, get_level
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
@@ -25,18 +24,6 @@ def chat_sender(for_chat_id, message_text):
         "message": message_text,
         "random_id": 0
     })
-
-
-def get_level(for_user_id):
-    try:
-        db = sqlite3.connect('admins.db')
-        c = db.cursor()
-        level = c.execute(f"SELECT lvl FROM admins WHERE vk_id = {for_user_id}").fetchone()[0]
-        db.commit()
-        db.close()
-        return int(level)
-    except:
-        return 0
 
 
 def send_start_keyboard(for_user_id):

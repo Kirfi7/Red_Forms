@@ -7,6 +7,7 @@ from cfg import SCOPE, COMMANDS
 creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", SCOPE)
 client = gspread.authorize(creds)
 sheet = client.open("ADMINS RED1").worksheet("Админ-формы")
+main_list = client.open("ADMINS RED1").sheet1
 
 
 def add_form(form_text, user_id):
@@ -37,3 +38,7 @@ def form_ranked_up(row_number, level):
 def form_denied(row_number):
     sheet.update_cell(row_number, 4, "Нет в базе")
 
+
+def get_level(user_id):
+    row = main_list.find(str(user_id), in_column=7).row
+    return int(main_list.cell(int(row), 727).value)
