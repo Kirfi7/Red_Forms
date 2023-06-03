@@ -3,11 +3,13 @@ import vk_api
 TOKEN = "vk1.a.Z_w2nL1jQ93q9R1K8cqETf8zttPoJdzYJBC1_5QJQYBTOzfQSfLAmmCjkqeureXhaiQBFzimFLjMGOiumeMrbL8QpwZwZ0QHjBQZc0gfyT47bR5V1OQ1OBxWrCwZkyHl4iboEbBozT4NNym3J3Hh017aBw5dXRLoUNRIf2Zg-MYqf9JiXvJr6y2pvGr_IHQQO7d2O9M_-Hqsg9vfq8goZQ"
 # group token
 
-DEV = ["534422651", "468509613"]
-#         Миша          Кирилл
+DEV = {"534422651": "Миша", "468509613": "Кирилл"}
 
 STAFF = ["327113505", "16715256", "137480835"]
 #           Влад         Гей         Серый
+
+SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets",
+         "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
 
 COMMANDS = {
     "mute": {"lvl": 1, "parameters": 4},
@@ -19,20 +21,10 @@ COMMANDS = {
     "ban": {"lvl": 3, "parameters": 4},
     "unban": {"lvl": 3, "parameters": 3},
     "permban": {"lvl": 4, "parameters": 3},
-    "ungwarn": {"lvl": 3, "parameters": 4}
+    "ungwarn": {"lvl": 4, "parameters": 4},
+    "sban": {"lvl": 4, "parameters": 4},
+    "spermban": {"lvl": 4, "parameters": 3}
 }
-
-# db = sqlite3.connect('admins.db')
-# c = db.cursor()
-# c.execute(f"CREATE TABLE admins (nick TEXT, lvl INTEGER, vk_id INTEGER)")
-# db.commit()
-# db.close()
-#
-# db = sqlite3.connect('forms.db')
-# c = db.cursor()
-# c.execute(f"CREATE TABLE forms (form TEXT, lvl INTEGER, date INTEGER, vk_id INTEGER)")
-# db.commit()
-# db.close()
 
 vk_session = vk_api.VkApi(token=TOKEN)
 

@@ -1,78 +1,39 @@
-import sqlite3
+import time
+import gspread
 
-from cfg import COMMANDS
-from cfg import chat_sender
+from oauth2client.service_account import ServiceAccountCredentials
+from cfg import SCOPE, COMMANDS
 
-
-def add_form(text, date, vk_id):
-    array = text.split()
-    cmd = array[0][1:]
-
-    dtb = sqlite3.connect('admins.db')
-    ct = dtb.cursor()
-    nick_name = ct.execute(f"SELECT nick FROM admins WHERE vk_id = '{vk_id}'").fetchone()[0]
-    nick_by = f" | by {nick_name[0]}. {nick_name.split('_')[1]}"
-
-    if len(array) < 3 or not("_" in array[1]) or not(cmd in COMMANDS) or text.count(cmd) > 1 or "-" in text:
-        return 0
-
-    if COMMANDS[cmd]['parameters'] == 4 and len(array) >= 4:
-
-        time = array[2]
-        try:
-            t = int(time)
-
-        except ValueError:
-            t = -1
-
-        if t > 0:
-            db = sqlite3.connect('forms.db'); c = db.cursor()
-            c.execute(f"INSERT INTO forms VALUES ('{text + nick_by}', '{COMMANDS[cmd]['lvl']}', '{date}', '{vk_id}')")
-            forms_count = len(c.execute(f"SELECT rowid FROM forms").fetchall())
-            db.commit()
-            db.close()
-
-            if forms_count >= 10:
-                chat_sender(1, f"@all Примите формы! Накопилось уже {forms_count}!")
-
-            return 1
-
-        return 0
-
-    elif COMMANDS[cmd]['parameters'] == 3 and len(array) >= 3:
-        db = sqlite3.connect('forms.db'); c = db.cursor()
-        c.execute(f"INSERT INTO forms VALUES ('{text + nick_by}', '{COMMANDS[cmd]['lvl']}', '{date}', '{vk_id}')")
-        forms_count = len(c.execute(f"SELECT rowid FROM forms").fetchall())
-        db.commit(); db.close()
-
-        if forms_count >= 10:
-            chat_sender(2, f"@all Примите формы! Накопилось уже {forms_count}!")
-
-        return 1
-
-    return 0
+creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", SCOPE)
+client = gspread.authorize(creds)
+sheet = client.open("ADMINS RED1").worksheet("Админ-формы")
 
 
-def get_form(lvl):
-    db = sqlite3.connect('forms.db')
-    c = db.cursor()
-    result = c.execute(f"SELECT rowid, form, vk_id FROM forms WHERE lvl <= '{int(lvl)}'").fetchone()
+def add_form(form_text, user_id):
+    now_time = time.strftime("%H:%M:%S %d.%m.%Y", time.localtime())
+    command = form_text.split()[0][1:]
 
-    if result is None:
-        db.commit()
-        db.close()
-        return 0, 0, 0
-
-    c.execute(f"DELETE FROM forms WHERE rowid = '{result[0]}'")
-    db.commit()
-    db.close()
-    return result
+    sheet.append_row([form_text, COMMANDS[command]['lvl'], user_id, "В ожидании", now_time])
+    sheet.add_rows(1)
 
 
-def form_count():
-    db = sqlite3.connect('forms.db')
-    c = db.cursor()
-    count = len(c.execute(f"SELECT lvl FROM forms").fetchall())
-    db.commit()
-    db.close()
-    return count
+def get_form(level: float):
+    for cell in sheet.findall("В ожидании", in_column=4):
+        row = cell.row
+        if int(sheet.cell(row, 2).value) <= level:
+            return sheet.cell(row, 1).value, row, sheet.cell(row, 3).value
+
+    return "Error", "Error", "Error"
+
+
+def form_accepted(row_number):
+    sheet.update_cell(row_number, 4, "Принята")
+
+
+def form_ranked_up(row_number, level):
+    sheet.update_cell(row_number, 2, level + 1)
+
+
+def form_denied(row_number):
+    sheet.update_cell(row_number, 4, "Нет в базе")
+
